@@ -26,10 +26,18 @@ app.use(express.static("frontEnd"))
 app.get('/user', async (request, response) => {
     let userTable = database.collection('users');
     let users = userTable.find({});
-    let results = fetchResults(users)
+    let results = await fetchResults(users)
     response.contentType('application/json');
     response.send(JSON.stringify(results));
 });
+
+app.get('/users/:age', async (request, response) => {
+    let age = request.params.age;
+    let userTable = database.collection('users');
+    let users = await fetchResults(userTable.find({age:Number(age)}));
+    response.contentType('application/json');
+    response.send(JSON.stringify(users));
+})
 
 //successfully connect to the database, then start the web server
 connectToMongoClient().then(() => {
