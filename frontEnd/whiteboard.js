@@ -2,7 +2,7 @@
 Circle
 Ellipse
 Line
-Path
+Path (pencil brush)
 Rect
 Text
  */
@@ -51,7 +51,7 @@ function init(canvasElement) {
     canvas.isDrawingMode = true;//set to true to draw with the brush
     //set the brush that will be used in free drawing mode
     // canvas.freeDrawingBrush = new fabric.PencilBrush(canvas);
-    canvas.freeDrawingBrush = new MyBrush(canvas)
+    canvas.freeDrawingBrush = new RectangleBrush(canvas)
 
     canvas.on('path:created', function(opt) {
         const newlyCreatedPath = opt.path;
@@ -78,9 +78,12 @@ function init(canvasElement) {
 
 }
 
-class MyBrush extends fabric.BaseBrush{
+
+class CircleBrush extends fabric.BaseBrush{
     constructor(canvas) {
         super(canvas);
+        this.mouseDown = {x:0,y:0}
+        this.mouseUp = {x:0,y:0}
     }
 
     _render(ctx){
@@ -88,34 +91,255 @@ class MyBrush extends fabric.BaseBrush{
         if(!ctx){
             ctx = this.canvas.contextTop
         }
-        ctx.fillRect(this.dp.x,this.dp.y,this.up.x-this.dp.x,this.up.y-this.dp.y)
-        ctx.trans
-        // ctx.render(ctx)
+
+        let width = this.mouseUp.x - this.mouseDown.x;
+        let height = this.mouseUp.y - this.mouseDown.y;
+        let radius = Math.min(Math.abs(width/2), Math.abs(height/2));
+        ctx.save()
+        ctx.beginPath();
+        ctx.arc(this.mouseDown.x+width/2,this.mouseDown.y+height/2,radius, 0, 2 * Math.PI);
+        ctx.closePath();
+        ctx.fill()
+        ctx.restore()
     }
 
     onMouseDown(pointer, ev){
-        console.log("Mouse Down!!",pointer,ev);
-        this.dp = pointer;
-        this.up = pointer;
+        this.mouseDown = pointer;
+        this.mouseUp = pointer;
     }
 
     onMouseMove(pointer, ev){
-        console.log("Mouse Move!!",pointer,ev);
-        this.up = pointer;
+        this.mouseUp = pointer;
+        //draw the preview
         this._render()
     }
 
     onMouseUp(ev){
-        console.log("Mouse Up!!",ev);
+
+        //remove thew preview from the screen
         this.canvas.clearContext(this.canvas.contextTop);
-        let width = this.up.x-this.dp.x
-        let height = this.up.y-this.dp.y
-        this.canvas.add(new fabric.Rect({
-            width: width,
-            height: height,
-            left: this.dp.x +width/2,//why is this necessary????
-            top: this.dp.y + height/2,
+        let width = this.mouseUp.x - this.mouseDown.x;
+        let height = this.mouseUp.y - this.mouseDown.y;
+        let radius = Math.min(Math.abs(width/2), Math.abs(height/2));;
+
+        //add the finished object to the canvas here, also notify the server that a new object was added!
+        canvas.add(new fabric.Circle({
+            left: this.mouseDown.x + width/2,
+            top: this.mouseDown.y + height/2,
+            radius: radius,
         }))
+
+        //optional turn the drawing off to allow for the editing of what was drawn
         canvas.isDrawingMode = false;
     }
 }
+
+class EllipseBrush extends fabric.BaseBrush{
+    constructor(canvas) {
+        super(canvas);
+        this.mouseDown = {x:0,y:0}
+        this.mouseUp = {x:0,y:0}
+    }
+
+    _render(ctx){
+        this.canvas.clearContext(this.canvas.contextTop);
+        if(!ctx){
+            ctx = this.canvas.contextTop
+        }
+
+        let width = this.mouseUp.x - this.mouseDown.x;
+        let height = this.mouseUp.y - this.mouseDown.y;
+        let rx = width/2;
+        let ry = height/2;
+        ctx.beginPath();
+        ctx.save()
+        /*Create a matrix of the following:
+            a c e
+            b d f
+            0 0 1
+         */
+        //scale in the y-axis by the aspect ratio
+        let aspectRatio = ry / rx
+        ctx.transform(1, 0, 0, aspectRatio, 0, 0);
+        ctx.arc(this.mouseDown.x+width/2,(this.mouseDown.y+height/2)/aspectRatio, Math.abs(rx), 0, 2 * Math.PI);
+        ctx.restore()
+        ctx.closePath();
+        ctx.fill()
+    }
+
+    onMouseDown(pointer, ev){
+        this.mouseDown = pointer;
+        this.mouseUp = pointer;
+    }
+
+    onMouseMove(pointer, ev){
+        this.mouseUp = pointer;
+        //draw the preview
+        this._render()
+    }
+
+    onMouseUp(ev){
+
+        //remove thew preview from the screen
+        this.canvas.clearContext(this.canvas.contextTop);
+        let width = this.mouseUp.x - this.mouseDown.x;
+        let height = this.mouseUp.y - this.mouseDown.y;
+        let rx = width/2;
+        let ry = height/2;
+
+        //add the finished object to the canvas here, also notify the server that a new object was added!
+        canvas.add(new fabric.Ellipse({
+            left: this.mouseDown.x + width/2,
+            top: this.mouseDown.y + height/2,
+            rx: rx,
+            ry: ry,
+        }))
+
+        //optional turn the drawing off to allow for the editing of what was drawn
+        canvas.isDrawingMode = false;
+    }
+}
+
+class LineBrush extends fabric.BaseBrush{
+    constructor(canvas) {
+        super(canvas);
+        this.mouseDown = {x:0,y:0}
+        this.mouseUp = {x:0,y:0}
+    }
+
+    _render(ctx){
+        this.canvas.clearContext(this.canvas.contextTop);
+        if(!ctx){
+            ctx = this.canvas.contextTop
+        }
+        ctx.beginPath()
+        ctx.moveTo(this.mouseDown.x, this.mouseDown.y);
+        ctx.lineTo(this.mouseUp.x, this.mouseUp.y);
+        ctx.closePath()
+        ctx.stroke()
+    }
+
+    onMouseDown(pointer, ev){
+        this.mouseDown = pointer;
+        this.mouseUp = pointer;
+    }
+
+    onMouseMove(pointer, ev){
+        this.mouseUp = pointer;
+        //draw the preview
+        this._render()
+    }
+
+    onMouseUp(ev){
+
+        //remove thew preview from the screen
+        this.canvas.clearContext(this.canvas.contextTop);
+        let width = this.mouseUp.x - this.mouseDown.x;
+        let height = this.mouseUp.y - this.mouseDown.y;
+
+        //add the finished object to the canvas here, also notify the server that a new object was added!
+        canvas.add(new fabric.Line([
+            this.mouseDown.x,
+            this.mouseDown.y,
+            this.mouseUp.x,
+            this.mouseUp.y,
+        ],{
+            stroke: 'black',       // Must have a stroke color to be visible
+            strokeWidth: 5,      // Must have a thickness > 0
+        }))
+
+        //optional turn the drawing off to allow for the editing of what was drawn
+        canvas.isDrawingMode = false;
+    }
+}
+
+class RectangleBrush extends fabric.BaseBrush{
+    constructor(canvas) {
+        super(canvas);
+        this.mouseDown = {x:0,y:0}
+        this.mouseUp = {x:0,y:0}
+    }
+
+    _render(ctx){
+        this.canvas.clearContext(this.canvas.contextTop);
+        if(!ctx){
+            ctx = this.canvas.contextTop
+        }
+        let width = this.mouseUp.x - this.mouseDown.x;
+        let height = this.mouseUp.y - this.mouseDown.y;
+        ctx.fillRect(this.mouseDown.x, this.mouseDown.y, width, height);
+        //in progress drawing commands here
+    }
+
+    onMouseDown(pointer, ev){
+        this.mouseDown = pointer;
+        this.mouseUp = pointer;
+    }
+
+    onMouseMove(pointer, ev){
+        this.mouseUp = pointer;
+        //draw the preview
+        this._render()
+    }
+
+    onMouseUp(ev){
+
+        //remove thew preview from the screen
+        this.canvas.clearContext(this.canvas.contextTop);
+        let width = this.mouseUp.x - this.mouseDown.x;
+        let height = this.mouseUp.y - this.mouseDown.y;
+
+        //add the finished object to the canvas here, also notify the server that a new object was added!
+        canvas.add(new fabric.Rect({
+            left: this.mouseDown.x + width/2,
+            top: this.mouseUp.y -height/2,
+            width: width,
+            height: height
+        }))
+
+        //optional turn the drawing off to allow for the editing of what was drawn
+        canvas.isDrawingMode = false;
+    }
+}
+
+
+
+// class BrushSkeleton extends fabric.BaseBrush{
+//     constructor(canvas) {
+//         super(canvas);
+//         this.mouseDown = {x:0,y:0}
+//         this.mouseUp = {x:0,y:0}
+//     }
+//
+//     _render(ctx){
+//         this.canvas.clearContext(this.canvas.contextTop);
+//         if(!ctx){
+//             ctx = this.canvas.contextTop
+//         }
+//         //in progress drawing commands here
+//     }
+//
+//     onMouseDown(pointer, ev){
+//         this.mouseDown = pointer;
+//         this.mouseUp = pointer;
+//     }
+//
+//     onMouseMove(pointer, ev){
+//         this.mouseUp = pointer;
+//         //draw the preview
+//         this._render()
+//     }
+//
+//     onMouseUp(ev){
+//
+//         //remove thew preview from the screen
+//         this.canvas.clearContext(this.canvas.contextTop);
+//         let width = this.mouseUp.x - this.mouseDown.x;
+//         let height = this.mouseUp.y - this.mouseDown.y;
+//
+//         //add the finished object to the canvas here, also notify the server that a new object was added!
+//
+//         //optional turn the drawing off to allow for the editing of what was drawn
+//         canvas.isDrawingMode = false;
+//     }
+// }
