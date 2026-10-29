@@ -4,7 +4,7 @@ Ellipse
 Line
 Path (pencil brush)
 Rect
-Text
+Text direct placement
  */
 
 //https://github.com/fabricjs/fabric.js/blob/master/packages/core/src good for figuring out how things work
@@ -48,10 +48,17 @@ function init(canvasElement) {
         return false;
     }
 
-    canvas.isDrawingMode = true;//set to true to draw with the brush
+    canvas.isDrawingMode = false;//set to true to draw with the brush
     //set the brush that will be used in free drawing mode
     // canvas.freeDrawingBrush = new fabric.PencilBrush(canvas);
     canvas.freeDrawingBrush = new RectangleBrush(canvas)
+
+
+    canvas.add(new fabric.Textbox("sample text", {
+        top: 100,
+        left: 150,
+        width: 200
+    }))
 
     canvas.on('path:created', function(opt) {
         const newlyCreatedPath = opt.path;
