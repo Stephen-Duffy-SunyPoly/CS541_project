@@ -49,11 +49,12 @@ function init(canvasElement) {
     //     return false;
     // }
 
-    canvas.isDrawingMode = true;//set to true to draw with the brush
+    canvas.isDrawingMode = false;//set to true to draw with the brush
     //set the brush that will be used in free drawing mode
     canvas.freeDrawingBrush = new fabric.PencilBrush(canvas);
     // canvas.freeDrawingBrush = new RectangleBrush(canvas)
 
+    /*
     let c = new fabric.Circle({
         left: 30,
         top: 80,
@@ -96,6 +97,7 @@ function init(canvasElement) {
         stroke: 'black',       // Must have a stroke color to be visible
         strokeWidth: 5,      // Must have a thickness > 0
     }))
+    //*/
 
     canvas.on('path:created', function(opt) {
         const newlyCreatedPath = opt.path;
@@ -420,6 +422,96 @@ path
     }
 
     return result
+}
+
+function distillEntireCanvas(){
+    result = []
+    canvas.forEachObject((obj,index,arr) => {
+        result[index] = distillCanvasItem(obj)
+    })
+    return result
+}
+
+function loadCanvasFromData(canvasData){
+    canvas.clear()
+    canvas.backgroundColor = "white";
+    for(let i=0; i<canvasData.length; i++){
+        canvas.add(loadItemFromData(canvasData[i]));
+    }
+}
+
+function loadItemFromData(itemData){
+    switch (itemData.type){
+        case 'circle':
+            let c = new fabric.Circle({
+                left: itemData.x,
+                top: itemData.y,
+                radius: itemData.radius,
+                fillColor: itemData.color,
+                angle: itemData.angle,
+                selectable: !itemData.selected
+            })
+            c.setControlsVisibility({
+                mt: false, // middle top
+                mb: false, // middle bottom
+                ml: false, // middle left
+                mr: false  // middle right
+            });
+            return c;
+        case 'textbox':
+            return new fabric.Textbox(itemData.text, {
+                top: itemData.y,
+                left: itemData.x,
+                width: itemData.width,
+                height: itemData.height,
+                angle: itemData.angle,
+                fill: itemData.color,
+                selectable: !itemData.selected
+            })
+        case 'ellipse':
+            return new fabric.Ellipse({
+                left: itemData.x,
+                top: itemData.y,
+                rx: itemData.rx,
+                ry: itemData.ry,
+                angle: itemData.angle,
+                fill: itemData.color,
+                selectable: !itemData.selected
+            })
+        case 'rect':
+            return new fabric.Rect({
+                left: itemData.x,
+                top: itemData.y,
+                width: itemData.width,
+                height: itemData.height,
+                angle: itemData.angle,
+                fill: itemData.color,
+                selectable: !itemData.selected
+            })
+        case 'line':
+            return new fabric.Line([
+                itemData.x1,
+                itemData.y1,
+                itemData.x2,
+                itemData.y2,
+            ],{
+                stroke: itemData.color,       // Must have a stroke color to be visible
+                strokeWidth: 5,      // Must have a thickness > 0
+                angle: itemData.angle,
+                scaleX: itemData.scaleX,
+                scaleY: itemData.scaleY,
+                selectable: !itemData.selected
+            })
+        case 'path':
+            return new fabric.Path(itemData.pathData,{
+                angle: itemData.angle,
+                stroke: itemData.color,
+                scaleX: itemData.scaleX,
+                scaleY: itemData.scaleY,
+                fill: null,
+                selectable: !itemData.selected
+            })
+    }
 }
 
 
