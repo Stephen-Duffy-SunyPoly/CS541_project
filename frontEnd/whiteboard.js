@@ -14,11 +14,12 @@ let canvas = null;
 function init(canvasElement) {
     console.log("init!")
     canvas = new fabric.Canvas(canvasElement);
+    canvas.backgroundColor = "white";
     const helloWorld = new fabric.Text('Move ME!', {
         top: 50,
         left: 150
     });
-    canvas.add(helloWorld);
+    // canvas.add(helloWorld);
 
     helloWorld.left = 300
     helloWorld.setCoords()//this recalculates the selection box
@@ -26,38 +27,74 @@ function init(canvasElement) {
     let selected = false
 
     //report the position of the thing as long as it is selected
-    helloWorld.onSelect = (event) => {
-        selected = true;
-        setTimeout(function report(){
-            console.log(helloWorld.left+" "+helloWorld.top)
-            if(selected) {
-                setTimeout(report, 500)
-            }
-        },50)
-        //force deselect an object
-        setTimeout(()=>{canvas.discardActiveObject(); canvas.requestRenderAll();}, 5000)
-        return false;
-    }
+    // helloWorld.onSelect = (event) => {
+    //     selected = true;
+    //     setTimeout(function report(){
+    //         console.log(helloWorld.left+" "+helloWorld.top)
+    //         if(selected) {
+    //             setTimeout(report, 500)
+    //         }
+    //     },50)
+    //     //force deselect an object
+    //     setTimeout(()=>{canvas.discardActiveObject(); canvas.requestRenderAll();}, 5000)
+    //     return false;
+    // }
+    //
+    // //you get 1 chance to move this
+    // helloWorld.onDeselect=(e)=> {
+    //     helloWorld.selectable = false
+    //     console.log("deselect")
+    //     console.log(helloWorld)
+    //     selected = false
+    //     return false;
+    // }
 
-    //you get 1 chance to move this
-    helloWorld.onDeselect=(e)=> {
-        helloWorld.selectable = false
-        console.log("deselect")
-        console.log(helloWorld)
-        selected = false
-        return false;
-    }
-
-    canvas.isDrawingMode = false;//set to true to draw with the brush
+    canvas.isDrawingMode = true;//set to true to draw with the brush
     //set the brush that will be used in free drawing mode
-    // canvas.freeDrawingBrush = new fabric.PencilBrush(canvas);
-    canvas.freeDrawingBrush = new RectangleBrush(canvas)
+    canvas.freeDrawingBrush = new fabric.PencilBrush(canvas);
+    // canvas.freeDrawingBrush = new RectangleBrush(canvas)
 
+    let c = new fabric.Circle({
+        left: 30,
+        top: 80,
+        radius: 50
+    })
+    c.setControlsVisibility({
+        mt: false, // middle top
+        mb: false, // middle bottom
+        ml: false, // middle left
+        mr: false  // middle right
+    });
+    canvas.add(c)
 
     canvas.add(new fabric.Textbox("sample text", {
         top: 100,
         left: 150,
         width: 200
+    }))
+
+    canvas.add(new fabric.Ellipse({
+        left: 180,
+        top: 80,
+        rx: 50,
+        ry: 30,
+    }))
+
+    canvas.add(new fabric.Rect({
+        left: 330,
+        top: 80,
+        width: 50,
+        height: 30
+    }))
+
+    canvas.add(new fabric.Line([
+        460,
+        80,
+        500,
+        110,
+    ],{
+        stroke: 'black',       // Must have a stroke color to be visible
+        strokeWidth: 5,      // Must have a thickness > 0
     }))
 
     canvas.on('path:created', function(opt) {
@@ -130,11 +167,18 @@ class CircleBrush extends fabric.BaseBrush{
         let radius = Math.min(Math.abs(width/2), Math.abs(height/2));;
 
         //add the finished object to the canvas here, also notify the server that a new object was added!
-        canvas.add(new fabric.Circle({
+        let c = new fabric.Circle({
             left: this.mouseDown.x + width/2,
             top: this.mouseDown.y + height/2,
-            radius: radius,
-        }))
+            radius: radius
+        })
+        c.setControlsVisibility({
+            mt: false, // middle top
+            mb: false, // middle bottom
+            ml: false, // middle left
+            mr: false  // middle right
+        });
+        canvas.add(c)
 
         //optional turn the drawing off to allow for the editing of what was drawn
         canvas.isDrawingMode = false;
@@ -309,6 +353,74 @@ class RectangleBrush extends fabric.BaseBrush{
     }
 }
 
+function distillCanvasItem(item){
+    /*
+    circle
+textbox
+ellipse
+rect
+line
+path
+     */
+    let result = {
+        selected: canvas.getActiveObjects().includes(item),
+        type: item.type
+    }
+    switch (item.type){
+        case 'circle':
+            //x, y, radius, rotation, color
+            result.x = item.left
+            result.y = item.top
+            result.radius = item.radius
+            result.angle = item.angle
+            result.color = item.fill
+            break;
+        case 'textbox':
+            result.x = item.left
+            result.y = item.top
+            result.width = item.width
+            result.height = item.height
+            result.angle = item.angle
+            result.color = item.fill
+            result.text = item.text
+            break;
+        case 'ellipse':
+            result.x = item.left
+            result.y = item.top
+            result.rx = item.rx * item.scaleX
+            result.ry = item.ry * item.scaleY
+            result.angle = item.angle
+            result.color = item.fill
+            break;
+        case 'rect':
+            result.x = item.left
+            result.y = item.top
+            result.width = item.width * item.scaleX
+            result.height = item.height * item.scaleY
+            result.angle = item.angle
+            result.color = item.fill
+            break;
+        case 'line':
+            result.x1 = item.x1
+            result.y1 = item.y1
+            result.x2 = item.x2
+            result.y2 = item.y2
+            result.color = item.stroke
+            result.scaleX = item.scaleX
+            result.scaleY = item.scaleY
+            result.angle = item.angle
+            break;
+        case 'path':
+            result.pathData = item.path
+            result.angle = item.angle
+            result.color = item.stroke
+            result.scaleX = item.scaleX
+            result.scaleY = item.scaleY
+            break;
+    }
+
+    return result
+}
 
 
 // class BrushSkeleton extends fabric.BaseBrush{
