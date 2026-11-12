@@ -103,7 +103,6 @@ function init(canvasElement) {
         const newlyCreatedPath = opt.path;
 
         // Access or modify the path object
-        console.log('Path created:', newlyCreatedPath);
 
         // Example: assign a custom property or ID
         newlyCreatedPath.set({
@@ -111,6 +110,7 @@ function init(canvasElement) {
             strokeLineCap: 'round'
         });
         canvas.isDrawingMode = false;
+        itemAdded(newlyCreatedPath);
     });
 
     //operation on each object in the scene
@@ -124,6 +124,83 @@ function init(canvasElement) {
 
 }
 
+function updateLoop(){
+    fetch("whiteboardContent?id=" + boardId).then(res => {
+        if (res.ok) {
+            res.json().then(data => {
+                if(data.items.length !== canvas.size()) {
+                    // if items were added or removed
+
+                } else {
+                    for(let i = 0; i < data.items.length; i++) {
+                        let item = data.items[i]
+                        let onCanvas = canvas.item(i)
+                        // console.log(item.timestamp,onCanvas.modified, i)
+                        if(!canvas.getActiveObjects().includes(onCanvas) && (item.timestamp === undefined || item.timestamp == null || onCanvas.modified === undefined || onCanvas.modified === null || item.timestamp > onCanvas.modified
+                        || item.selected !== onCanvas.selectable)) {
+                            let updatedItem = loadItemFromData(item)
+                            updatedItem.modified = item.timestamp
+                            canvas.item(i).set(updatedItem)
+                            canvas.renderAll()
+                        }
+                    }
+                }
+            });
+        }
+    })
+    setTimeout(updateLoop, 500)
+}
+
+function itemAdded(item){
+    function syncItemWithServer() {
+        let index = -1
+        for (let i = 0; i < canvas.size(); i++) {
+            if (canvas.item(i) === item) {
+                index = i;
+                break;
+            }
+        }
+        item.modified = Date.now()
+        // send modification info to the server
+        fetch("/whiteboards/modify", {
+            method: 'POST',
+            headers: {
+                'content-type': 'application/json',
+            },
+            body: JSON.stringify({
+                type: "modify",
+                index: index,
+                board: boardId,
+                item: distillCanvasItem(item)
+            })
+        })
+    }
+    // report the position of the thing as long as it is selected
+    let selected = false;
+    item.modified = Date.now()
+    item.onSelect = (event) => {
+        selected = true;
+        setTimeout(function report(){
+            // console.log(item.left+" "+item.top)
+            // find the index of this item
+            syncItemWithServer();
+            if(selected) {
+                setTimeout(report, 500)
+            }
+        },50)
+        //force deselect an object
+        // setTimeout(()=>{canvas.discardActiveObject(); canvas.requestRenderAll();}, 5000)
+        return false;
+    }
+
+
+    item.onDeselect=(e)=> {
+        console.log("deselect")
+        selected = false
+        syncItemWithServer();
+        return false;
+    }
+}
 
 class CircleBrush extends fabric.BaseBrush{
     constructor(canvas) {
@@ -373,7 +450,7 @@ path
             //x, y, radius, rotation, color
             result.x = item.left
             result.y = item.top
-            result.radius = item.radius
+            result.radius = item.radius * item.scaleX
             result.angle = item.angle
             result.color = item.fill
             break;
@@ -436,7 +513,9 @@ function loadCanvasFromData(canvasData){
     canvas.clear()
     canvas.backgroundColor = "white";
     for(let i=0; i<canvasData.length; i++){
-        canvas.add(loadItemFromData(canvasData[i]));
+        let item = loadItemFromData(canvasData[i])
+        canvas.add(item);
+        itemAdded(item)
     }
 }
 

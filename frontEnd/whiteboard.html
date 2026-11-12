@@ -16,17 +16,26 @@
     <script src="whiteboard.js"></script>
     <script>
 
+        let boardId = -1;
         setTimeout(()=>{
-            init(document.querySelector('#canvas'))
-            fetch("example.data.json").then(res=>{
-                if(res.ok){
-                    res.json().then(data=>{
-                        loadCanvasFromData(data);
-                    });
-                } else {
-                    console.error(res)
-                }
-            })
+            const urlParams = new URLSearchParams(window.location.search);
+            boardId = urlParams.get('id');
+            if(boardId == null){
+                document.querySelector('.centerer').innerHTML = "Whiteboard not found!"
+            } else {
+                boardId = Number(boardId);
+                init(document.querySelector('#canvas'))
+                fetch("whiteboardContent?id=" + boardId).then(res => {
+                    if (res.ok) {
+                        res.json().then(data => {
+                            loadCanvasFromData(data.items);
+                        });
+                        setTimeout(updateLoop, 500)
+                    } else {
+                        console.error(res)
+                    }
+                })
+            }
         },10)
 
     </script>
