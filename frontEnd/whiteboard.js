@@ -141,6 +141,7 @@ function updateLoop(){
                             let updatedItem = loadItemFromData(item)
                             updatedItem.modified = item.timestamp
                             canvas.item(i).set(updatedItem)
+                            canvas.item(i).setCoords();
                             canvas.renderAll()
                         }
                     }
@@ -480,14 +481,22 @@ path
             result.color = item.fill
             break;
         case 'line':
-            result.x1 = item.x1
-            result.y1 = item.y1
-            result.x2 = item.x2
-            result.y2 = item.y2
+            const points = item.calcLinePoints();
+            const matrix = item.calcTransformMatrix();
+
+            const p1 = new fabric.Point(points.x1, points.y1);
+            const p2 = new fabric.Point(points.x2, points.y2);
+
+            const point1 = fabric.util.transformPoint(p1, matrix);
+            const point2 = fabric.util.transformPoint(p2, matrix);
+
+            result.x1 = point1.x;
+            result.y1 = point1.y;
+            result.x2 = point2.x;
+            result.y2 = point2.y;
             result.color = item.stroke
-            result.scaleX = item.scaleX
-            result.scaleY = item.scaleY
-            result.angle = item.angle
+            result.strokeWidth = item.strokeWidth;
+
             break;
         case 'path':
             result.pathData = item.path
@@ -495,6 +504,8 @@ path
             result.color = item.stroke
             result.scaleX = item.scaleX
             result.scaleY = item.scaleY
+            result.left = item.left;
+            result.top = item.top;
             break;
     }
 
@@ -574,11 +585,8 @@ function loadItemFromData(itemData){
                 itemData.x2,
                 itemData.y2,
             ],{
-                stroke: itemData.color,       // Must have a stroke color to be visible
-                strokeWidth: 5,      // Must have a thickness > 0
-                angle: itemData.angle,
-                scaleX: itemData.scaleX,
-                scaleY: itemData.scaleY,
+                stroke: itemData.color,
+                strokeWidth: itemData.strokeWidth,//TODO make the width not change with scaling
                 selectable: !itemData.selected
             })
         case 'path':
@@ -588,7 +596,9 @@ function loadItemFromData(itemData){
                 scaleX: itemData.scaleX,
                 scaleY: itemData.scaleY,
                 fill: null,
-                selectable: !itemData.selected
+                selectable: !itemData.selected,
+                left: itemData.left,
+                top: itemData.top,
             })
     }
 }
