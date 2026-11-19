@@ -10,21 +10,23 @@ Text direct placement
 //https://github.com/fabricjs/fabric.js/blob/master/packages/core/src good for figuring out how things work
 
 let canvas = null;
-
+let revision = 0;
 function init(canvasElement) {
     console.log("init!")
     canvas = new fabric.Canvas(canvasElement);
     canvas.backgroundColor = "white";
-    const helloWorld = new fabric.Text('Move ME!', {
-        top: 50,
-        left: 150
-    });
+    canvas.selection = false
+    // const helloWorld = new fabric.Text('Move ME!', {
+    //     top: 50,
+    //     left: 150
+    // });
+
     // canvas.add(helloWorld);
 
-    helloWorld.left = 300
-    helloWorld.setCoords()//this recalculates the selection box
+    // helloWorld.left = 300
+    // helloWorld.setCoords()//this recalculates the selection box
 
-    let selected = false
+    // let selected = false
 
     //report the position of the thing as long as it is selected
     // helloWorld.onSelect = (event) => {
@@ -110,7 +112,9 @@ function init(canvasElement) {
             strokeLineCap: 'round'
         });
         canvas.isDrawingMode = false;
-        itemAdded(newlyCreatedPath);
+        createNewItem(newlyCreatedPath);
+        canvas.remove(newlyCreatedPath);
+        canvas.renderAll();
     });
 
     //operation on each object in the scene
@@ -130,7 +134,16 @@ function updateLoop(){
             res.json().then(data => {
                 if(data.items.length !== canvas.size()) {
                     // if items were added or removed
-
+                    if(revision !== data.revised){
+                        revision = data.revised
+                    }
+                    if(data.items.length > canvas.size()){//new items
+                        for(let i = canvas.size();i<data.items.length;i++){
+                            let item = loadItemFromData(data.items[i])
+                            itemAdded(item);
+                            canvas.add(item);
+                        }
+                    }
                 } else {
                     for(let i = 0; i < data.items.length; i++) {
                         let item = data.items[i]
@@ -172,7 +185,8 @@ function itemAdded(item){
                 type: "modify",
                 index: index,
                 board: boardId,
-                item: distillCanvasItem(item)
+                item: distillCanvasItem(item),
+                revised: revision,
             })
         })
     }
@@ -201,6 +215,81 @@ function itemAdded(item){
         syncItemWithServer();
         return false;
     }
+}
+
+function createNewItem(item){
+    fetch("/whiteboards/add",{
+        method: 'POST',
+        headers: {
+            'content-type': 'application/json',
+        },
+        body: JSON.stringify({
+            board: boardId,
+            item: distillCanvasItem(item),
+        })
+    })
+}
+
+function setMode(newMode){
+    let selectButton = document.getElementById("selectButton");
+    let circleButton = document.getElementById("circleButton");
+    let ellipseButton = document.getElementById("ellipseButton");
+    let lineButton = document.getElementById("lineButton");
+    let rectangleButton = document.getElementById("rectangleButton");
+    let pathButton = document.getElementById("pathButton");
+    //enable all the mode buttons
+    selectButton.disabled = false
+    circleButton.disabled = false
+    ellipseButton.disabled = false
+    lineButton.disabled = false
+    rectangleButton.disabled = false
+    pathButton.disabled = false
+
+    //diable this mode button
+    //set the appropriate drawing brush and mode
+    switch(newMode) {
+        case "select":
+            selectButton.disabled = true
+            canvas.isDrawingMode = false;
+            break;
+        case "circle":
+            circleButton.disabled = true
+            canvas.isDrawingMode = true;
+            canvas.freeDrawingBrush = new CircleBrush(canvas)
+            canvas.discardActiveObject();
+            canvas.requestRenderAll();
+            break;
+        case "ellipse":
+            ellipseButton.disabled = true
+            canvas.isDrawingMode = true
+            canvas.freeDrawingBrush = new EllipseBrush(canvas)
+            canvas.discardActiveObject();
+            canvas.requestRenderAll();
+            break;
+        case "line":
+            lineButton.disabled = true
+            canvas.isDrawingMode = true;
+            canvas.freeDrawingBrush = new LineBrush(canvas)
+            canvas.discardActiveObject();
+            canvas.requestRenderAll();
+            break;
+        case "rectangle":
+            rectangleButton.disabled = true
+            canvas.isDrawingMode = true;
+            canvas.freeDrawingBrush = new RectangleBrush(canvas)
+            canvas.discardActiveObject();
+            canvas.requestRenderAll();
+            break;
+        case "path":
+            pathButton.disabled = true
+            canvas.isDrawingMode = true;
+            canvas.freeDrawingBrush = new fabric.PencilBrush(canvas)
+            canvas.discardActiveObject();
+            canvas.requestRenderAll();
+            break;
+    }
+
+
 }
 
 class CircleBrush extends fabric.BaseBrush{
@@ -258,10 +347,10 @@ class CircleBrush extends fabric.BaseBrush{
             ml: false, // middle left
             mr: false  // middle right
         });
-        canvas.add(c)
+        createNewItem(c)
 
         //optional turn the drawing off to allow for the editing of what was drawn
-        canvas.isDrawingMode = false;
+        setMode("select")
     }
 }
 
@@ -319,7 +408,7 @@ class EllipseBrush extends fabric.BaseBrush{
         let ry = height/2;
 
         //add the finished object to the canvas here, also notify the server that a new object was added!
-        canvas.add(new fabric.Ellipse({
+        createNewItem(new fabric.Ellipse({
             left: this.mouseDown.x + width/2,
             top: this.mouseDown.y + height/2,
             rx: rx,
@@ -327,7 +416,7 @@ class EllipseBrush extends fabric.BaseBrush{
         }))
 
         //optional turn the drawing off to allow for the editing of what was drawn
-        canvas.isDrawingMode = false;
+        setMode("select")
     }
 }
 
@@ -369,7 +458,7 @@ class LineBrush extends fabric.BaseBrush{
         let height = this.mouseUp.y - this.mouseDown.y;
 
         //add the finished object to the canvas here, also notify the server that a new object was added!
-        canvas.add(new fabric.Line([
+        createNewItem(new fabric.Line([
             this.mouseDown.x,
             this.mouseDown.y,
             this.mouseUp.x,
@@ -380,7 +469,7 @@ class LineBrush extends fabric.BaseBrush{
         }))
 
         //optional turn the drawing off to allow for the editing of what was drawn
-        canvas.isDrawingMode = false;
+        setMode("select")
     }
 }
 
@@ -421,7 +510,7 @@ class RectangleBrush extends fabric.BaseBrush{
         let height = this.mouseUp.y - this.mouseDown.y;
 
         //add the finished object to the canvas here, also notify the server that a new object was added!
-        canvas.add(new fabric.Rect({
+        createNewItem(new fabric.Rect({
             left: this.mouseDown.x + width/2,
             top: this.mouseUp.y -height/2,
             width: width,
@@ -429,7 +518,7 @@ class RectangleBrush extends fabric.BaseBrush{
         }))
 
         //optional turn the drawing off to allow for the editing of what was drawn
-        canvas.isDrawingMode = false;
+        setMode("select")
     }
 }
 
@@ -536,7 +625,7 @@ function loadItemFromData(itemData){
             let c = new fabric.Circle({
                 left: itemData.x,
                 top: itemData.y,
-                radius: itemData.radius,
+                radius: Math.abs(itemData.radius),
                 fillColor: itemData.color,
                 angle: itemData.angle,
                 selectable: !itemData.selected
@@ -562,8 +651,8 @@ function loadItemFromData(itemData){
             return new fabric.Ellipse({
                 left: itemData.x,
                 top: itemData.y,
-                rx: itemData.rx,
-                ry: itemData.ry,
+                rx: Math.abs(itemData.rx),
+                ry: Math.abs(itemData.ry),
                 angle: itemData.angle,
                 fill: itemData.color,
                 selectable: !itemData.selected

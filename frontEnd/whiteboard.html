@@ -29,6 +29,7 @@
                     if (res.ok) {
                         res.json().then(data => {
                             loadCanvasFromData(data.items);
+                            revision = data.revised;
                         });
                         setTimeout(updateLoop, 500)
                     } else {
@@ -43,7 +44,17 @@
 <body>
 PLACEHOLDER TEXT
 <div class="centerer">
-    <canvas id="canvas" width="1200" height="700"></canvas>
+    <div>
+        <canvas id="canvas" width="1200" height="700"></canvas>
+        <div class="toolbox centerer">
+            <button id="selectButton" onclick="setMode('select')" disabled>Select</button>
+            <button id="circleButton" onclick="setMode('circle')">Circle</button>
+            <button id="lineButton" onclick="setMode('line')">Line</button>
+            <button id="rectangleButton" onclick="setMode('rectangle')">Rectangle</button>
+            <button id="ellipseButton" onclick="setMode('ellipse')">Ellipse</button>
+            <button id="pathButton" onclick="setMode('path')">Path</button>
+        </div>
+    </div>
 </div>
 
 

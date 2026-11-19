@@ -90,6 +90,7 @@ app.post("/whiteboards/modify", async (request, response) => {
     let index = request.body.index
     let item = request.body.item
     let board = request.body.board
+    let revised = request.body.revised;
     let setObj = {}
     item.timestamp = Date.now()
     if(item.selected){
@@ -99,12 +100,41 @@ app.post("/whiteboards/modify", async (request, response) => {
     if(type === "modify"){
         let whiteboardsTable = database.collection('whiteboards');
         whiteboardsTable.updateOne(
-            {boardId: board},
+            {boardId: board,
+                revised:revised},//only update if the revision has not changed
             {
                 $set: setObj
             }
         )
     }
+    response.send()
+})
+
+app.post("/whiteboards/add", async (request, response) => {
+    if(request.headers['content-type'] !== 'application/json'){
+        response.status(400);
+        response.setHeader('content-type', 'application/json');
+        response.send({message:"Invalid content type"});
+        return;
+    }
+    let item = request.body.item
+    let board = request.body.board
+    let revised = Date.now()
+
+    item.timestamp = Date.now()
+    if(item.selected){
+        item.selectedTs = Date.now()
+    }
+
+    let whiteboardsTable =  database.collection('whiteboards');
+    whiteboardsTable.updateOne(
+        {boardId: board},
+        {
+            $set: {revised:revised},
+            $push: {items:item}
+        }
+    )
+
     response.send()
 })
 
