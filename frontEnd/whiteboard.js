@@ -11,6 +11,7 @@ Text direct placement
 
 let canvas = null;
 let revision = 0;
+let deleteMode = false;
 function init(canvasElement) {
     console.log("init!")
     canvas = new fabric.Canvas(canvasElement);
@@ -117,6 +118,9 @@ function init(canvasElement) {
         canvas.renderAll();
     });
 
+    canvas.on("selection:updated", selectionMade)
+    canvas.on("selection:created", selectionMade)
+
     //operation on each object in the scene
     // canvas.forEachObject((obj,index,arr) => {
     //     console.log(obj.type)
@@ -128,38 +132,93 @@ function init(canvasElement) {
 
 }
 
+function selectionMade(event){
+    if(deleteMode) {
+        let item = event.selected[0]
+        let index = -1
+        for (let i = 0; i < canvas.size(); i++) {
+            if (canvas.item(i) === item) {
+                index = i;
+                break;
+            }
+        }
+        let json = distillCanvasItem(item);
+        canvas.remove(item)
+        //TODO send the delete command to the server
+    }
+}
+
 function updateLoop(){
     fetch("whiteboardContent?id=" + boardId).then(res => {
         if (res.ok) {
             res.json().then(data => {
-                if(data.items.length !== canvas.size()) {
-                    // if items were added or removed
-                    if(revision !== data.revised){
-                        revision = data.revised
-                    }
-                    if(data.items.length > canvas.size()){//new items
-                        for(let i = canvas.size();i<data.items.length;i++){
-                            let item = loadItemFromData(data.items[i])
-                            itemAdded(item);
-                            canvas.add(item);
+                //go through every item,
+                for(let i = 0; i < data.items.length; i++) {
+                    let dataItem = data.items[i];
+                    if(i<canvas.size()) {
+                        let onCanvas = canvas.item(i);
+                        //if the corresponding item has been selected then skip this item
+                        if (!canvas.getActiveObjects().includes(onCanvas)) {
+                            continue;
                         }
-                    }
-                } else {
-                    for(let i = 0; i < data.items.length; i++) {
-                        let item = data.items[i]
-                        let onCanvas = canvas.item(i)
-                        // console.log(item.timestamp,onCanvas.modified, i)
-                        if(!canvas.getActiveObjects().includes(onCanvas) && (item.timestamp === undefined || item.timestamp == null || onCanvas.modified === undefined || onCanvas.modified === null || item.timestamp > onCanvas.modified
-                        || item.selected !== onCanvas.selectable)) {
-                            let updatedItem = loadItemFromData(item)
-                            updatedItem.modified = item.timestamp
+                        //if the corresponding item on the canvas has a different type,
+                        if (onCanvas.type !== dataItem.type) {
+                            //remove the canvas item
+                            canvas.remove(i);
+                            //start the loop over but do not change the subject item
+                            i--;
+                            continue;
+                        }
+                        //if the canvas item has a different timestamp
+                        if((dataItem.timestamp === undefined || dataItem.timestamp == null || onCanvas.modified === undefined ||
+                            onCanvas.modified === null || dataItem.timestamp > onCanvas.modified || dataItem.selected !== onCanvas.selectable)) {
+                            if (canvas.getActiveObjects().includes(onCanvas)) {
+                                continue;
+                            }
+                            // console.log(dataItem.timestamp, onCanvas.modified,canvas.getActiveObjects().includes(onCanvas))
+                            //set the new item content
+                            let updatedItem = loadItemFromData(dataItem)
+                            updatedItem.modified = dataItem.timestamp
                             canvas.item(i).set(updatedItem)
                             canvas.item(i).setCoords();
                             canvas.renderAll()
                         }
+                    } else {//if the end of the canvas has been reached
+                        //add new items to the canvas
+                        let item = loadItemFromData(dataItem)
+                        itemAdded(item);
+                        canvas.add(item);
                     }
                 }
+                // if(data.items.length !== canvas.size()) {
+                //     // if items were added or removed
+                //     if(revision !== data.revised){
+                //         revision = data.revised
+                //     }
+                //     if(data.items.length > canvas.size()){//new items
+                //         for(let i = canvas.size();i<data.items.length;i++){
+                //             let item = loadItemFromData(data.items[i])
+                //             itemAdded(item);
+                //             canvas.add(item);
+                //         }
+                //     }
+                // } else {
+                //     for(let i = 0; i < data.items.length; i++) {
+                //         let item = data.items[i]
+                //         let onCanvas = canvas.item(i)
+                //         // console.log(item.timestamp,onCanvas.modified, i)
+                //         if(!canvas.getActiveObjects().includes(onCanvas) && (item.timestamp === undefined || item.timestamp == null || onCanvas.modified === undefined || onCanvas.modified === null || item.timestamp > onCanvas.modified
+                //         || item.selected !== onCanvas.selectable)) {
+                //             let updatedItem = loadItemFromData(item)
+                //             updatedItem.modified = item.timestamp
+                //             canvas.item(i).set(updatedItem)
+                //             canvas.item(i).setCoords();
+                //             canvas.renderAll()
+                //         }
+                //     }
+                // }
             });
+
         }
     })
     setTimeout(updateLoop, 500)
@@ -237,6 +296,7 @@ function setMode(newMode){
     let lineButton = document.getElementById("lineButton");
     let rectangleButton = document.getElementById("rectangleButton");
     let pathButton = document.getElementById("pathButton");
+    let deleteButton = document.getElementById("deleteButton");
     //enable all the mode buttons
     selectButton.disabled = false
     circleButton.disabled = false
@@ -244,6 +304,8 @@ function setMode(newMode){
     lineButton.disabled = false
     rectangleButton.disabled = false
     pathButton.disabled = false
+    deleteButton.disabled = false
+    deleteMode = false;
 
     //diable this mode button
     //set the appropriate drawing brush and mode
@@ -286,6 +348,13 @@ function setMode(newMode){
             canvas.freeDrawingBrush = new fabric.PencilBrush(canvas)
             canvas.discardActiveObject();
             canvas.requestRenderAll();
+            break;
+        case "delete":
+            deleteButton.disabled = true
+            canvas.isDrawingMode = false;
+            canvas.discardActiveObject();
+            canvas.requestRenderAll();
+            deleteMode = true;
             break;
     }
 
