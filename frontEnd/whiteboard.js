@@ -144,7 +144,20 @@ function selectionMade(event){
         }
         let json = distillCanvasItem(item);
         canvas.remove(item)
+        console.log(index);
         //TODO send the delete command to the server
+        fetch("whiteboards/delete",{
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                item: json,
+                board: boardId,
+                revised: revision,
+                index: index
+            })
+        })
     }
 }
 
@@ -158,13 +171,13 @@ function updateLoop(){
                     if(i<canvas.size()) {
                         let onCanvas = canvas.item(i);
                         //if the corresponding item has been selected then skip this item
-                        if (!canvas.getActiveObjects().includes(onCanvas)) {
+                        if (canvas.getActiveObjects().includes(onCanvas)) {
                             continue;
                         }
                         //if the corresponding item on the canvas has a different type,
                         if (onCanvas.type !== dataItem.type) {
                             //remove the canvas item
-                            canvas.remove(i);
+                            canvas.remove(onCanvas);
                             //start the loop over but do not change the subject item
                             i--;
                             continue;
@@ -189,6 +202,7 @@ function updateLoop(){
                         itemAdded(item);
                         canvas.add(item);
                     }
+                    revision = data.revised
                 }
                 // if(data.items.length !== canvas.size()) {
                 //     // if items were added or removed

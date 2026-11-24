@@ -25,22 +25,6 @@ app.use(express.static("frontEnd"))
 app.use(express.json()); // for parsing application/json
 app.disable('etag');
 
-app.get('/user', async (request, response) => {
-    let userTable = database.collection('users');
-    let users = userTable.find({});
-    let results = await fetchResults(users)
-    response.contentType('application/json');
-    response.send(JSON.stringify(results));
-});
-
-app.get('/users/:age', async (request, response) => {
-    let age = request.params.age;
-    let userTable = database.collection('users');
-    let users = await fetchResults(userTable.find({age:Number(age)}));
-    response.contentType('application/json');
-    response.send(JSON.stringify(users));
-})
-
 app.get('/whiteboardContent', async (request, response) => {
     let boardId = request.query.id
     // console.log(boardId);
@@ -140,6 +124,60 @@ app.post("/whiteboards/add", async (request, response) => {
         }
     )
 
+    response.send()
+})
+
+app.post("/whiteboards/delete", async (request, response) => {
+    if(request.headers['content-type'] !== 'application/json'){
+        response.status(400);
+        response.setHeader('content-type', 'application/json');
+        response.send({message:"Invalid content type"});
+        return;
+    }
+    let item = request.body.item
+    let board = request.body.board
+    let revised = request.body.revised;
+    let revisedNow = Date.now()
+    let index = request.body.index
+    if(item === undefined || board === undefined || revised === undefined|| index === undefined || index < 0){
+        response.status(404)
+        response.send("Not Found");
+        return;
+    }
+    let whiteboardsTable =  database.collection('whiteboards');
+    let remObj = {};
+    if(index !== 0) {
+        whiteboardsTable.updateOne(
+            {
+                boardId: board,
+                revised: revised
+            },
+            [
+                {
+                    $set: {
+                        items: {
+                            $concatArrays: [
+                                {$slice: ["$items", index]}, // Elements before index
+                                {$slice: ["$items", index + 1, {$size: "$items"}]} // Elements after index+1
+                            ]
+                        },
+                        revised: revisedNow
+                    }
+                }
+            ]
+        )
+    } else {
+        whiteboardsTable.updateOne(
+            {
+                boardId: board,
+                revised: revised
+            },
+            {
+                $pop: {items: -1},
+                $set: {revised:revisedNow},
+            }
+        )
+    }
     response.send()
 })
 
