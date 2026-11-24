@@ -166,7 +166,8 @@ function updateLoop(){
         if (res.ok) {
             res.json().then(data => {
                 //go through every item,
-                for(let i = 0; i < data.items.length; i++) {
+                let i;
+                for(i = 0; i < data.items.length; i++) {
                     let dataItem = data.items[i];
                     if(i<canvas.size()) {
                         let onCanvas = canvas.item(i);
@@ -203,6 +204,11 @@ function updateLoop(){
                         canvas.add(item);
                     }
                     revision = data.revised
+                }
+                while(i < canvas.size()) {
+                    let item = canvas.item(canvas.size()-1)
+                    console.log("Remove")
+                    canvas.remove(item)
                 }
                 // if(data.items.length !== canvas.size()) {
                 //     // if items were added or removed

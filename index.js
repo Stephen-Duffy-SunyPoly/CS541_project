@@ -184,6 +184,6 @@ app.post("/whiteboards/delete", async (request, response) => {
 //successfully connect to the database, then start the web server
 connectToMongoClient().then(() => {
     app.listen(port, () => {
-        console.log(`Example app listening on port ${port}`);
+        console.log(`Whiteboard app listening on port ${port}`);
     });
 }).catch(console.dir)
