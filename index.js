@@ -96,6 +96,11 @@ app.post("/whiteboards/modify", async (request, response) => {
     if(item.selected){
         item.selectedTs = Date.now()
     }
+    if(index === undefined || index < 0){
+        response.status(404)
+        response.send("Element Not Found");
+        return
+    }
     setObj["items."+index] = item
     if(type === "modify"){
         let whiteboardsTable = database.collection('whiteboards');

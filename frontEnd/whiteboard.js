@@ -233,6 +233,7 @@ function itemAdded(item){
                 break;
             }
         }
+        console.log(-1);
         item.modified = Date.now()
         // send modification info to the server
         fetch("/whiteboards/modify", {
@@ -254,14 +255,19 @@ function itemAdded(item){
     item.modified = Date.now()
     item.onSelect = (event) => {
         selected = true;
-        setTimeout(function report(){
+        //sending a modify command after having just deleted the item is not good, so dont do it
+
+        setTimeout(function report() {
             // console.log(item.left+" "+item.top)
             // find the index of this item
-            syncItemWithServer();
-            if(selected) {
-                setTimeout(report, 500)
+            if(!deleteMode) {
+                syncItemWithServer();
+                if (selected) {
+                    setTimeout(report, 500)
+                }
             }
-        },50)
+        }, 50)
+
         //force deselect an object
         // setTimeout(()=>{canvas.discardActiveObject(); canvas.requestRenderAll();}, 5000)
         return false;
@@ -271,7 +277,9 @@ function itemAdded(item){
     item.onDeselect=(e)=> {
         console.log("deselect")
         selected = false
-        syncItemWithServer();
+        if(!deleteMode) {
+            syncItemWithServer();
+        }
         return false;
     }
 }
